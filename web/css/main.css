@@ -1,0 +1,28 @@
+.dialog {
+    margin: 0 auto;
+    display: none;
+    width: 25em;
+    flex-direction: column;
+}
+
+.dialog>.row {
+    display: flex;
+    flex-direction: column;
+}
+
+.row>label {
+    font-weight: bold;
+    margin-bottom: 0.5em;
+}
+
+.dialog>* {
+    margin: 0.5em 0;
+}
+
+.dialog>button {
+    margin-top: 1em;
+    padding: 0.5em;
+    border-radius: 0.5em;
+    border: 1px solid #aabbcc;
+    background: #ddeeff;
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>FoToPo</title>
+
+        <script src="http://code.jquery.com/jquery-3.2.1.min.js"></script>
+        
+        <script src="js/aws-cognito-sdk.min.js"></script>
+        <script src="js/amazon-cognito-identity.min.js"></script>
+        <script src="js/auth.js"></script>
+
+        <link rel="stylesheet" href="css/main.css" />
+    </head>
+
+    <body>
+        <h1>FoToPo</h1>
+
+        <div id="signinDialog" class="dialog">
+            <div class="row">
+                <label for="email">Email</label>
+                <input type="text" id="email" />
+            </div>
+
+            <div class="row">
+                <label for="password">Password</label>
+                <input type="password" id="password" />
+            </div>
+
+            <button id="signin">Sign in/up</button>
+        </div>
+
+        <div id="confirmDialog" class="dialog">
+            <p>We've emailed you a confirmation code...</p>
+
+            <div class="row">
+                <label for="code">Confirmation code</label>
+                <input type="text" id="code" />
+            </div>
+
+            <button id="confirm">Confirm</button>
+
+            <p><a href="#" id="resend">Resend code</a></p>
+        </p>
+
+        <script src="js/main.js"></script>
+    </body>
+</html>
