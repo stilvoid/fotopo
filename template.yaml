@@ -5,6 +5,22 @@ Resources:
     Type: AWS::Cognito::UserPool
     Properties:
       UserPoolName: fotopo
+      AliasAttributes:
+      - email
+      AutoVerifiedAttributes:
+      - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
 
   Function:
     Type: AWS::Serverless::Function
@@ -12,21 +28,36 @@ Resources:
       Handler: lambda.handler
       Runtime: python3.6
       CodeUri: ./lambda.py
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            Path: /
-            Method: any
 
-  Api:
+  ApiGatewayToLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: {Service: [apigateway.amazonaws.com]}
+          Action: "sts:AssumeRole"
+      Policies:
+      - PolicyName: ApiGatewayToLambdaPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: ["lambda:InvokeFunction"]
+            Resource: !GetAtt Function.Arn
+
+  ServerlessRestApi:
     Type: AWS::Serverless::Api
     Properties:
       StageName: Prod
       DefinitionBody:
         swagger: "2.0"
 
-        basePath: "/Prod"
+        basePath: "/"
+
+        produces:
+        - application/json
 
         schemes:
         - "https"
@@ -49,12 +80,95 @@ Resources:
         paths:
           /:
             x-amazon-apigateway-any-method:
-              responses: {}
               security:
               - fotopo: []
               x-amazon-apigateway-integration:
+                credentials: !GetAtt ApiGatewayToLambdaRole.Arn
                 type: "aws_proxy"
                 httpMethod: "POST"
                 uri: !GetAtt Function.Arn
                 uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Function.Arn}/invocations
                 passthroughBehavior: "when_no_match"
+                responses:
+                  "default":
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Headers : "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+                      method.response.header.Access-Control-Allow-Methods : "'*'"
+                      method.response.header.Access-Control-Allow-Origin : "'*'"
+                  "BAD.*":
+                    statusCode: "400"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin : "'*'"
+                  "INT.*":
+                    statusCode: "500"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Origin : "'*'"
+              responses:
+                "200":
+                  description: Default response for CORS method
+                  headers:
+                    Access-Control-Allow-Headers:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                "400":
+                  description: Bad request
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+                "500":
+                  description: Internal error
+                  headers:
+                    Access-Control-Allow-Origin:
+                      type: "string"
+
+            options:
+              summary: CORS support
+              description: Enable CORS by returning correct headers
+              consumes:
+              - application/json
+              produces:
+              - application/json
+              tags:
+              - CORS
+              x-amazon-apigateway-integration:
+                type: mock
+                requestTemplates:
+                  application/json: |
+                    {
+                      "statusCode" : 200
+                    }
+                responses:
+                  "default":
+                    statusCode: "200"
+                    responseParameters:
+                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+                      method.response.header.Access-Control-Allow-Methods: "'*'"
+                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                    responseTemplates:
+                      application/json: |
+                        {}
+              responses:
+                "200":
+                  description: Default response for CORS method
+                  headers:
+                    Access-Control-Allow-Headers:
+                      type: "string"
+                    Access-Control-Allow-Methods:
+                      type: "string"
+                    Access-Control-Allow-Origin:
+                      type: "string"
+
+Outputs:
+  ApiUrl:
+    Description: Endpoint URL
+    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/
+  UserPoolId:
+    Description: Cognito Userpool ID
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: Cognito Userpool Client ID
+    Value: !Ref UserPoolClient
