@@ -20,6 +20,10 @@ var auth = (function() {
     }
 
     function refresh() {
+        if(!localStorage.getItem("token")) {
+            return;
+        }
+
         var user = makeUser(localStorage.getItem("user"));
 
         var token = new AWSCognito.CognitoIdentityServiceProvider.CognitoRefreshToken({
@@ -86,8 +90,9 @@ var auth = (function() {
             user.authenticateUser(auth, {
                 onSuccess: function(result) {
                     localStorage.setItem("refresh_token", result.refreshToken.token);
+                    localStorage.setItem("token", result.getIdToken().getJwtToken());
 
-                    callback(result.getIdToken().getJwtToken());
+                    callback();
                 },
 
                 onFailure: function(err) {

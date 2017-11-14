@@ -15,19 +15,10 @@ var passwordRe = /^\S{8,}$/;
 
 var fileInput = document.getElementById("file");
 fileInput.onchange = function() {
-    putItem(localStorage.getItem("token"));
+    putItem();
 };
 
-window.onload = function() {
-    var token = localStorage.getItem("token");
-
-    if(token == null) {
-        show("signinDialog");
-    } else {
-        hide("signinDialog");
-        loadStuff(token);
-    }
-};
+window.onload = loadStuff;
 
 function reset() {
     hide("confirmDialog");
@@ -70,10 +61,7 @@ loginButton.onclick = function() {
             hide("signinDialog");
             hide("confirmDialog");
 
-            localStorage.setItem("token", result);
-
-            console.log(result);
-            loadStuff(result);
+            loadStuff();
         }
     });
 };
@@ -91,7 +79,7 @@ confirmButton.onclick = function() {
     });
 };
 
-function loadStuff(token) {
+function loadStuff() {
     show("list");
     listDiv.innerHTML = "<p class='message'>Loading...</p>";
 
@@ -101,7 +89,7 @@ function loadStuff(token) {
         url: config.ApiUrl + "list",
         type: "get",
         headers: {
-            Authorization: token
+            Authorization: localStorage.getItem("token")
         },
         success: function(data) {
             console.log("WIN");
@@ -114,7 +102,7 @@ function loadStuff(token) {
                 link.href = "#";
                 link.innerHTML = record;
                 link.onclick = function() {
-                    getItem(token, record);
+                    getItem(record);
                 };
 
                 var del = document.createElement("a");
@@ -122,7 +110,7 @@ function loadStuff(token) {
                 del.innerHTML = "X";
                 del.onclick = function(e) {
                     if(confirm("Are you sure you want to delete " + record)) {
-                        deleteItem(token, record);
+                        deleteItem(record);
                     }
 
                     e.stopPropagation();
@@ -149,14 +137,14 @@ function loadStuff(token) {
     });
 }
 
-function getItem(token, name) {
+function getItem(name) {
     auth.refresh();
 
     jQuery.ajax({
         url: config.ApiUrl + "download?k=" + encodeURIComponent(name),
         type: "get",
         headers: {
-            Authorization: token
+            Authorization: localStorage.getItem("token")
         },
         success: function(data) {
             window.location.href = data;
@@ -170,17 +158,17 @@ function getItem(token, name) {
     });
 }
 
-function deleteItem(token, name) {
+function deleteItem(name) {
     auth.refresh();
 
     jQuery.ajax({
         url: config.ApiUrl + "delete?k=" + encodeURIComponent(name),
         type: "get",
         headers: {
-            Authorization: token
+            Authorization: localStorage.getItem("token")
         },
         success: function(data) {
-            loadStuff(token);
+            loadStuff();
         },
         error: function(err) {
             console.log("LOSE");
@@ -191,7 +179,7 @@ function deleteItem(token, name) {
     });
 }
 
-function putItem(token) {
+function putItem() {
     listDiv.innerHTML = "<p class='message'>Uploading new file...</p>";
     hide("uploadForm");
 
@@ -201,7 +189,7 @@ function putItem(token) {
         url: config.ApiUrl + "upload",
         type: "get",
         headers: {
-            Authorization: token
+            Authorization: localStorage.getItem("token")
         },
         success: function(data) {
             console.log(JSON.stringify(data, null, 4));
@@ -232,7 +220,7 @@ function putItem(token) {
                     console.log("WIN upload");
                     console.log(data);
 
-                    loadStuff(token);
+                    loadStuff();
                 },
                 error: function(err) {
                     console.log("LOSE upload");
