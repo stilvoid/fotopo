@@ -47,7 +47,6 @@ def get_user_folder(user):
 
     sha1 = hashlib.sha1()
     sha1.update(user.encode("utf-8"))
-    sha1.update(CLIENT_SALT.encode("utf-8"))
     sha1.update(salt.encode("utf-8"))
 
     return sha1.hexdigest()
