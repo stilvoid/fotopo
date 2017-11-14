@@ -22,5 +22,16 @@ fi
 aws cloudformation package --template-file template.yaml --s3-bucket $bucket --output-template-file template.out.yaml >/dev/null
 aws cloudformation deploy --template-file template.out.yaml --stack-name $STACK --capabilities CAPABILITY_IAM
 
+# Create the config
+outputs=$(aws cloudformation describe-stacks --stack-name $STACK | jq '.Stacks[0].Outputs|map({key: .OutputKey, value: .OutputValue})|from_entries')
+echo "var config = $outputs;" > ./web/js/config.js
+
+# Upload the website
+website_bucket=$(echo $outputs | jq -r .WebsiteBucket)
+aws s3 cp --recursive --acl public-read web/ s3://$website_bucket
+
+website=$(echo $outputs | jq -r .Website)
+echo "Now visit $website"
+
 # Clean up
 rm template.out.yaml

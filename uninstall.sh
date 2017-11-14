@@ -12,5 +12,11 @@ set -e
 
 STACK=fotopo
 
-# Create the stack
+# Empty the bucket
+outputs=$(aws cloudformation describe-stacks --stack-name $STACK | jq '.Stacks[0].Outputs|map({key: .OutputKey, value: .OutputValue})|from_entries')
+website_bucket=$(echo $outputs | jq -r .WebsiteBucket)
+
+aws s3 rm --recursive s3://$website_bucket
+
+# Delete the stack
 aws cloudformation delete-stack --stack-name $STACK

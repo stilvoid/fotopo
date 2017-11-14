@@ -1,82 +1,99 @@
-var poolData = {
-    UserPoolId: "eu-west-1_3xw0lahES",
-    ClientId: "3reavi6jvsh0m656g7p8rkpm29"
-};
+var auth = (function() {
+    var userPool = new AWSCognito.CognitoIdentityServiceProvider.CognitoUserPool(config);
 
-var userPool = new AWSCognito.CognitoIdentityServiceProvider.CognitoUserPool(poolData);
+    function makeAuth(username, password) {
+        var authData = {
+            Username: username,
+            Password: password
+        };
 
-function signUp(username, password, callback) {
-    var attrs = [
-        new AWSCognito.CognitoIdentityServiceProvider.CognitoUserAttribute({
-            Name: "email",
-            Value: username
-        })
-    ];
+        return new AWSCognito.CognitoIdentityServiceProvider.AuthenticationDetails(authData);
+    }
 
-    userPool.signUp(username, password, attrs, null, function(err, result) {
-        if(err) {
-            return callback(null, err);
-        }
+    function makeUser(username) {
+        var userData = {
+            Username: username,
+            Pool: userPool
+        };
 
-        cognitoUser = result.user;
+        return new AWSCognito.CognitoIdentityServiceProvider.CognitoUser(userData);
+    }
 
-        callback(cognitoUser);
-    });
-}
+    function refresh() {
+        var user = makeUser(localStorage.getItem("user"));
 
-function confirmUser(username, code, callback) {
-    var user = makeUser(username);
+        var token = new AWSCognito.CognitoIdentityServiceProvider.CognitoRefreshToken({
+            RefreshToken: localStorage.getItem("refresh_token")
+        });
 
-    user.confirmRegistration(code, true, function(err, result) {
-        if(err) {
-            return callback(null, err);
-        }
+        user.refreshSession(token, function(err, result) {
+            localStorage.setItem("refresh_token", result.refreshToken.token);
+            localStorage.setItem("token", result.getIdToken().getJwtToken());
+        });
+    }
 
-        callback(result);
-    });
-}
+    return {
+        refresh: refresh,
+        signUp: function(username, password, callback) {
+            var attrs = [
+                new AWSCognito.CognitoIdentityServiceProvider.CognitoUserAttribute({
+                    Name: "email",
+                    Value: username
+                })
+            ];
 
-function resend(username, callback) {
-    var user = makeUser(username);
+            userPool.signUp(username, password, attrs, null, function(err, result) {
+                if(err) {
+                    return callback(null, err);
+                }
 
-    user.resendConfirmationCode(function(err, result) {
-        if(err) {
-            return callback(null, err);
-        }
+                cognitoUser = result.user;
 
-        callback(result);
-    });
-}
-
-function makeAuth(username, password) {
-    var authData = {
-        Username: username,
-        Password: password
-    };
-
-    return new AWSCognito.CognitoIdentityServiceProvider.AuthenticationDetails(authData);
-}
-
-function makeUser(username) {
-    var userData = {
-        Username: username,
-        Pool: userPool
-    };
-
-    return new AWSCognito.CognitoIdentityServiceProvider.CognitoUser(userData);
-}
-
-function signIn(username, password, callback) {
-    var user = makeUser(username);
-    var auth = makeAuth(username, password);
-
-    user.authenticateUser(auth, {
-        onSuccess: function(result) {
-            callback(result.getIdToken().getJwtToken());
+                callback(cognitoUser);
+            });
         },
 
-        onFailure: function(err) {
-            callback(null, err);
+        confirmUser: function(username, code, callback) {
+            var user = makeUser(username);
+
+            user.confirmRegistration(code, true, function(err, result) {
+                if(err) {
+                    return callback(null, err);
+                }
+
+                callback(result);
+            });
+        },
+
+        resend: function(username, callback) {
+            var user = makeUser(username);
+
+            user.resendConfirmationCode(function(err, result) {
+                if(err) {
+                    return callback(null, err);
+                }
+
+                callback(result);
+            });
+        },
+
+        signIn: function(username, password, callback) {
+            var user = makeUser(username);
+            var auth = makeAuth(username, password);
+
+            localStorage.setItem("user", username);
+
+            user.authenticateUser(auth, {
+                onSuccess: function(result) {
+                    localStorage.setItem("refresh_token", result.refreshToken.token);
+
+                    callback(result.getIdToken().getJwtToken());
+                },
+
+                onFailure: function(err) {
+                    callback(null, err);
+                }
+            });
         }
-    });
-}
+    };
+}());
