@@ -48,6 +48,7 @@ Resources:
       Environment:
         Variables:
           BUCKET: !Ref StorageBucket
+          REGION: !Ref AWS::Region
           TABLE: !Ref Table
       Policies:
       - Version: '2012-10-17'

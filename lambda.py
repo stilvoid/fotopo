@@ -104,7 +104,7 @@ def handler(event, context):
 
     if action == "upload":
         print("Uploading")
-        return respond(s3.generate_presigned_post(
+        data = s3.generate_presigned_post(
             Bucket=os.environ["BUCKET"],
             Key="{}/${{filename}}".format(folder),
             Fields={
@@ -113,7 +113,10 @@ def handler(event, context):
             Conditions=[
                 ["starts-with", "$Content-Type", ""],
             ],
-        ))
+        )
 
+        data["url"] = "https://{}.s3-{}.amazonaws.com/".format(os.environ["BUCKET"], os.environ["REGION"])
+
+        return respond(data)
     else:
         return respond("Unkown thingy: {} : {}".format(action, path))
