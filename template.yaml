@@ -17,6 +17,21 @@ Resources:
       WebsiteConfiguration:
         IndexDocument: index.html
 
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS:
+            - !GetAtt WebInstallerFunctionRole.Arn
+          Action:
+          - s3:PutObjectAcl
+          - s3:DeleteObject
+          Resource: !Sub arn:aws:s3:::${WebsiteBucket}/*
+
   Table:
     Type: AWS::Serverless::SimpleTable
 
@@ -44,30 +59,40 @@ Resources:
     Properties:
       Handler: lambda.handler
       Runtime: python3.6
-      CodeUri: ./lambda.py
+      CodeUri: ./lambda.zip
       Environment:
         Variables:
           BUCKET: !Ref StorageBucket
           REGION: !Ref AWS::Region
           TABLE: !Ref Table
       Policies:
-      - Version: '2012-10-17'
-        Statement:
-        - Effect: Allow
-          Action:
-          - s3:DeleteObject
-          - s3:GetObject
-          - s3:ListBucket
-          - s3:PutObject
-          Resource:
-          - !Sub 'arn:aws:s3:::${StorageBucket}'
-          - !Sub 'arn:aws:s3:::${StorageBucket}/*'
-        - Effect: Allow
-          Action:
-          - dynamodb:GetItem
-          - dynamodb:PutItem
-          Resource:
-          - !GetAtt Table.Arn
+      - S3CrudPolicy:
+          BucketName: !Ref StorageBucket
+      - DynamoDBCrudPolicy:
+          TableName: !Ref Table
+
+  WebInstallerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: web_installer.handler
+      Runtime: python3.6
+      CodeUri: ./lambda.zip
+      Environment:
+        Variables:
+          BUCKET: !Ref WebsiteBucket
+          DIR: web
+      Policies:
+      - S3CrudPolicy:
+          BucketName: !Ref WebsiteBucket
+
+  WebInstaller:
+    Type: Custom::WebInstaller
+    DependsOn: WebsiteBucketPolicy
+    Properties:
+      ServiceToken: !GetAtt WebInstallerFunction.Arn
+      ApiUrl: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/
+      UserPoolId: !Ref UserPool
+      ClientId: !Ref UserPoolClient
 
   ApiGatewayToLambdaRole:
     Type: AWS::IAM::Role
@@ -241,18 +266,6 @@ Resources:
                       type: "string"
 
 Outputs:
-  ApiUrl:
-    Description: Endpoint URL
-    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/
-  UserPoolId:
-    Description: Cognito Userpool ID
-    Value: !Ref UserPool
-  ClientId:
-    Description: Cognito Userpool Client ID
-    Value: !Ref UserPoolClient
-  WebsiteBucket:
-    Description: Website bucket
-    Value: !Ref WebsiteBucket
   Website:
     Description: Website URL
     Value: !GetAtt WebsiteBucket.WebsiteURL
